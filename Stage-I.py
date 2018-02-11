@@ -1,6 +1,7 @@
 import tensorflow  as tf
 import tensorflow.contrib.gan as tfgan
 import tensorflow.contrib.slim as slim
+import tensorflow.contrib.data as tfdata
 import tensorflow.contrib
 import configuration
 
