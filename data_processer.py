@@ -100,7 +100,8 @@ def get_tfrecord():
         img_raw = img.tobytes()
         example = tf.train.Example(features=tf.train.Features(feature={
             "image": tf.train.Feature(bytes_list=tf.train.BytesList(value=[img_raw])),
-            "image_shape": tf.train.Feature(int64_list=tf.train.Int64List(value=list(img.size) + [3])),
+            "image_shape": tf.train.Feature(
+                int64_list=tf.train.Int64List(value=list(img.size) + [len(img.getbands())])),
             "caption": tf.train.Feature(float_list=tf.train.FloatList(value=cap)),
             "caption_shape": tf.train.Feature(int64_list=tf.train.Int64List(value=[cap_num, 1024]))
         }))
