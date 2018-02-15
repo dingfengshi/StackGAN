@@ -3,7 +3,7 @@ import tensorflow as tf
 
 class config:
     def __init__(self):
-        self.model_path = ""
+        self.model_path = "/home/ste/diskG/StackGAN/model/"
         self.batch_size = 64
         self.noise_dim = 100
         self.CAnet_dim = 128

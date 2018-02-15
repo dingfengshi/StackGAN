@@ -22,10 +22,10 @@ def parse_data(example):
 def map_Stage_I(example):
     image, caption = parse_data(example)
     resized_image = tf.image.resize_images(image, [conf.small_image_size, conf.small_image_size])
-    cap_num = tf.shape(caption.shape[0].value)
-    choice = np.random.choice(range(cap_num))
-    single_caption = caption[choice, :]
-    return resized_image, caption
+    # 随机采样一个其中的caption用于训练
+    random = tf.random_uniform([1], 0, tf.shape(caption[0]), dtype=tf.int32)
+    single_caption = tf.gather_nd(caption, random)
+    return resized_image, single_caption
 
 
 def get_train_input_fn():
@@ -40,5 +40,9 @@ def get_train_input_fn():
             dataset = dataset.batch(conf.batch_size)
             iterator = dataset.make_one_shot_iterator()
             image, caption = iterator.get_next()
-            noise = tf.random_normal(conf.noise_dim)
-            return (noise, caption), image
+            caption.set_shape([conf.batch_size, 1024])
+            image.set_shape([conf.batch_size, conf.small_image_size, conf.small_image_size, 3])
+            noise = tf.random_normal([conf.batch_size, conf.noise_dim])
+            return {"noise": noise, "caption": caption}, image
+
+    return train_input_fn

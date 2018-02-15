@@ -3,6 +3,7 @@ import tensorflow.contrib.gan as tfgan
 import tensorflow.contrib.slim as slim
 import tensorflow.contrib.data as tfdata
 import tensorflow.contrib
+from tensorflow.contrib.learn import RunConfig
 import configuration
 import data_provider
 
@@ -41,7 +42,8 @@ def KL_loss(mu, log_sigma):
 
 def generator_fn(inputs, weight_decay=2.5e-5):
     # inputs is a 2-tuple (noise,embedding)
-    noise, embedding = inputs
+    noise = inputs["noise"]
+    embedding = inputs["caption"]
     mean, log_sigma = CAnet(embedding)
     c = mean + tf.exp(log_sigma) * tf.truncated_normal(shape=tf.shape(mean))
 
@@ -99,17 +101,11 @@ def generator_fn(inputs, weight_decay=2.5e-5):
 
     output = slim.conv2d(node2, 3, 3, activation_fn=tf.nn.tanh)
     # (:,64,64,3)
-    return (output, embedding)
+    return output
 
 
 def discriminator_fn(img, conditioning, weight_decay=2.5e-5):
-    _, embedding = conditioning
-
-    s16 = int(conf.small_image_size / 16)
-    s8 = int(conf.small_image_size / 8)
-    s4 = int(conf.small_image_size / 4)
-    s2 = int(conf.small_image_size / 2)
-
+    embedding = conditioning["caption"]
     # encoding image
     # (64,64,3)
     node1_0 = slim.conv2d(img, conf.df_dim, 4, 2, activation_fn=tf.nn.leaky_relu)
@@ -131,6 +127,8 @@ def discriminator_fn(img, conditioning, weight_decay=2.5e-5):
     text_encode = slim.fully_connected(embedding, conf.CAnet_dim, activation_fn=tf.nn.leaky_relu)
     # (:,128)
     text_encode = tf.expand_dims(tf.expand_dims(text_encode, 1), 1)
+
+    s16 = int(conf.small_image_size / 16)
     text_encode = tf.tile(text_encode, [1, s16, s16, 1])
     # (:,4,4,128)
 
@@ -147,6 +145,15 @@ def discriminator_fn(img, conditioning, weight_decay=2.5e-5):
 def start_train():
     conf.is_training = True
     train_input = data_provider.get_train_input_fn()
+
+    # Estimator参数
+    config = RunConfig(
+        save_summary_steps=100,
+        save_checkpoints_steps=1000,
+        keep_checkpoint_max=5,
+        model_dir=conf.model_path
+    )
+
     gan_estimator = tfgan.estimator.GANEstimator(
         model_dir=conf.model_path,
         generator_fn=generator_fn,
@@ -155,7 +162,12 @@ def start_train():
         discriminator_loss_fn=discriminator_loss_fn,
         generator_optimizer=conf.generator_optimizer,
         discriminator_optimizer=conf.discriminator_optimizer,
-        add_summaries=False
+        add_summaries=False,
+        config=config
     )
 
     gan_estimator.train(train_input)
+
+
+if __name__ == '__main__':
+    start_train()
