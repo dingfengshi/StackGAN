@@ -19,5 +19,6 @@ class config:
         self.generator_optimizer = tf.train.AdamOptimizer(learning_rate=self.gen_lr)
         self.dis_lr = 2e-4
         self.discriminator_optimizer = tf.train.AdamOptimizer(learning_rate=self.dis_lr)
+        self.epoch = 600
 
         self.data_path = '/home/ste/diskG/CUB_200_2011/'

@@ -4,6 +4,7 @@ import tensorflow.contrib.slim as slim
 import tensorflow.contrib.data as tfdata
 import tensorflow.contrib
 import configuration
+import data_provider
 
 tf.reset_default_graph()
 conf = configuration.config()
@@ -19,13 +20,6 @@ batch_norm_params = {
 global_step = tf.Variable(0, trainable=False, name="global_step")
 generator_loss_fn = tfgan.losses.wasserstein_generator_loss
 discriminator_loss_fn = tfgan.losses.wasserstein_discriminator_loss
-
-
-def get_train_input_fn(batch, noise_dim):
-    def train_input_fn():
-        return embedding
-
-    return train_input_fn
 
 
 # 产生分布的均值与方差
@@ -152,7 +146,7 @@ def discriminator_fn(img, conditioning, weight_decay=2.5e-5):
 
 def start_train():
     conf.is_training = True
-    train_input = get_train_input_fn(conf.batch_size, conf.noise_dim)
+    train_input = data_provider.get_train_input_fn()
     gan_estimator = tfgan.estimator.GANEstimator(
         model_dir=conf.model_path,
         generator_fn=generator_fn,
