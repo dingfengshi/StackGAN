@@ -11,6 +11,7 @@ import pylab
 import matplotlib.pyplot as plt
 import configuration
 import data_provider
+import losses
 
 tf.reset_default_graph()
 conf = configuration.config()
@@ -24,8 +25,8 @@ batch_norm_params = {
 }
 
 global_step = tf.Variable(0, trainable=False, name="global_step")
-generator_loss_fn = tfgan.losses.wasserstein_generator_loss
-discriminator_loss_fn = tfgan.losses.wasserstein_discriminator_loss
+generator_loss_fn = tfgan.losses.minimax_generator_loss
+discriminator_loss_fn = tfgan.losses.minimax_discriminator_loss
 
 
 # 产生分布的均值与方差
@@ -151,7 +152,7 @@ def get_estimator():
     # Estimator参数
     config = RunConfig(
         save_summary_steps=100,
-        save_checkpoints_steps=1000,
+        save_checkpoints_steps=300,
         keep_checkpoint_max=5,
         model_dir=conf.model_path
     )
@@ -160,7 +161,7 @@ def get_estimator():
         model_dir=conf.model_path,
         generator_fn=generator_fn,
         discriminator_fn=discriminator_fn,
-        generator_loss_fn=generator_loss_fn,
+        generator_loss_fn=losses.get_generator_loss(generator_loss_fn),
         discriminator_loss_fn=discriminator_loss_fn,
         generator_optimizer=conf.generator_optimizer,
         discriminator_optimizer=conf.discriminator_optimizer,
@@ -193,4 +194,4 @@ def start_predict():
 
 
 if __name__ == '__main__':
-    start_predict()
+    start_train()

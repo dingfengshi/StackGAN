@@ -22,6 +22,7 @@ def parse_data(example):
 def map_Stage_I(example):
     image, caption = parse_data(example)
     resized_image = tf.image.resize_images(image, [conf.small_image_size, conf.small_image_size])
+    resized_image = (resized_image - 127.5) / 255
     # 随机采样一个其中的caption用于训练
     random = tf.random_uniform([1], 0, tf.shape(caption)[0], dtype=tf.int32)
     single_caption = tf.gather_nd(caption, random)

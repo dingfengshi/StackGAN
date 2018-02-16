@@ -48,24 +48,37 @@ def get_tfrecord():
     train_test_split_path = "/home/ste/diskG/StackGAN/CUB/train_test_split.txt"
     train_save_path = "/home/ste/diskG/StackGAN/CUB/train.tfrecord"
     test_save_path = "/home/ste/diskG/StackGAN/CUB/test.tfrecord"
+    test_list_num = 256
 
     img_list = get_img_list(images_list_path)
     train_list = []
     test_list = []
 
+    n = 0
     with open(train_test_split_path) as fin:
         for each in fin.readlines():
             line = each.rstrip().split()
             idx = line[0]
             is_train = line[1]
-            if is_train == "1":
+            if is_train == "1" or n >= test_list_num:
                 train_list.append(img_list[int(idx) - 1])
             else:
                 test_list.append(img_list[int(idx) - 1])
+                n = n + 1
 
     # train_dataset
     writer = tf.python_io.TFRecordWriter(train_save_path)
-    for each in train_list:
+    write_tfrecord(train_list, writer)
+    writer.close()
+
+    # test dataset
+    writer = tf.python_io.TFRecordWriter(test_save_path)
+    write_tfrecord(test_list, writer)
+    writer.close()
+
+
+def write_tfrecord(data_list, writer):
+    for each in data_list:
         img_path = images_path + each + "_crop.jpg"
         cap_path = captions_path + each + ".t7"
         img = Image.open(img_path)
@@ -85,32 +98,6 @@ def get_tfrecord():
             "caption_shape": tf.train.Feature(int64_list=tf.train.Int64List(value=[cap_num, 1024]))
         }))
         writer.write(example.SerializeToString())
-    writer.close()
-
-    # test dataset
-    writer = tf.python_io.TFRecordWriter(test_save_path)
-    for each in test_list:
-        img_path = images_path + each + "_crop.jpg"
-        cap_path = captions_path + each + ".t7"
-        img = Image.open(img_path)
-        if len(img.getbands()) != 3:
-            continue
-        _cap = torchfile.load(cap_path)
-        # list has caption_num vector
-        cap = _cap.fea_txt
-        cap = np.array(cap)
-        cap_num = cap.shape[0]
-        cap = cap.flatten()
-        img_raw = img.tobytes()
-        example = tf.train.Example(features=tf.train.Features(feature={
-            "image": tf.train.Feature(bytes_list=tf.train.BytesList(value=[img_raw])),
-            "image_shape": tf.train.Feature(
-                int64_list=tf.train.Int64List(value=list(img.size) + [3])),
-            "caption": tf.train.Feature(float_list=tf.train.FloatList(value=cap)),
-            "caption_shape": tf.train.Feature(int64_list=tf.train.Int64List(value=[cap_num, 1024]))
-        }))
-        writer.write(example.SerializeToString())
-    writer.close()
 
 
 def get_img_list(path):
