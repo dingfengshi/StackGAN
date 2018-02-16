@@ -69,6 +69,8 @@ def get_tfrecord():
         img_path = images_path + each + "_crop.jpg"
         cap_path = captions_path + each + ".t7"
         img = Image.open(img_path)
+        if len(img.getbands()) != 3:
+            continue
         _cap = torchfile.load(cap_path)
         # list has caption_num vector
         cap = _cap.fea_txt
@@ -91,6 +93,8 @@ def get_tfrecord():
         img_path = images_path + each + "_crop.jpg"
         cap_path = captions_path + each + ".t7"
         img = Image.open(img_path)
+        if len(img.getbands()) != 3:
+            continue
         _cap = torchfile.load(cap_path)
         # list has caption_num vector
         cap = _cap.fea_txt
@@ -101,7 +105,7 @@ def get_tfrecord():
         example = tf.train.Example(features=tf.train.Features(feature={
             "image": tf.train.Feature(bytes_list=tf.train.BytesList(value=[img_raw])),
             "image_shape": tf.train.Feature(
-                int64_list=tf.train.Int64List(value=list(img.size) + [len(img.getbands())])),
+                int64_list=tf.train.Int64List(value=list(img.size) + [3])),
             "caption": tf.train.Feature(float_list=tf.train.FloatList(value=cap)),
             "caption_shape": tf.train.Feature(int64_list=tf.train.Int64List(value=[cap_num, 1024]))
         }))

@@ -1,9 +1,14 @@
+import subprocess
+
 import tensorflow  as tf
 import tensorflow.contrib.gan as tfgan
 import tensorflow.contrib.slim as slim
 import tensorflow.contrib.data as tfdata
 import tensorflow.contrib
 from tensorflow.contrib.learn import RunConfig
+import numpy as np
+import pylab
+import matplotlib.pyplot as plt
 import configuration
 import data_provider
 
@@ -36,7 +41,7 @@ def CAnet(embedding):
 def KL_loss(mu, log_sigma):
     with tf.name_scope("KL_divergence"):
         loss = -log_sigma + .5 * (-1 + tf.exp(2. * log_sigma) + tf.square(mu))
-        loss = tf.reduce_mean(loss)
+        loss = tf.reduce_mean(loss, name="KL_loss")
         return loss
 
 
@@ -47,9 +52,9 @@ def generator_fn(inputs, weight_decay=2.5e-5):
     mean, log_sigma = CAnet(embedding)
     c = mean + tf.exp(log_sigma) * tf.truncated_normal(shape=tf.shape(mean))
 
-    tf.variable_scope("KL_loss")
     if conf.is_training:
         loss = KL_loss(mean, log_sigma)
+        tf.add_to_collection(tf.GraphKeys.LOSSES, loss)
     else:
         loss = 0
 
@@ -142,10 +147,7 @@ def discriminator_fn(img, conditioning, weight_decay=2.5e-5):
     return output
 
 
-def start_train():
-    conf.is_training = True
-    train_input = data_provider.get_train_input_fn()
-
+def get_estimator():
     # Estimator参数
     config = RunConfig(
         save_summary_steps=100,
@@ -165,9 +167,30 @@ def start_train():
         add_summaries=False,
         config=config
     )
+    return gan_estimator
 
+
+def start_train():
+    conf.is_training = True
+    train_input = data_provider.get_stage_I_train_input_fn()
+    gan_estimator = get_estimator()
     gan_estimator.train(train_input)
 
 
+def start_predict():
+    conf.is_training = False
+    predict_input = data_provider.get_stage_I_predict_input_fn()
+    gan_estimator = get_estimator()
+    prediction_iterable = gan_estimator.predict(predict_input)
+    predictions = [prediction_iterable.__next__() for _ in range(conf.predict_batch_size)]
+    image_rows = [np.concatenate(predictions[i:i + 6], axis=0) for i in
+                  range(0, 36, 6)]
+    tiled_images = np.concatenate(image_rows, axis=1)
+    tiled_images = (tiled_images + 1) / 2 * 255
+    plt.axis('off')
+    plt.imshow(np.squeeze(tiled_images), cmap='gray')
+    pylab.show()
+
+
 if __name__ == '__main__':
-    start_train()
+    start_predict()
