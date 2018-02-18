@@ -66,6 +66,9 @@ def get_tfrecord():
                 test_list.append(img_list[int(idx) - 1])
                 n = n + 1
 
+    # print(train_list.__len__())
+    # print(test_list.__len__())
+
     # train_dataset
     writer = tf.python_io.TFRecordWriter(train_save_path)
     write_tfrecord(train_list, writer)

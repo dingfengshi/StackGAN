@@ -1,14 +1,12 @@
-import subprocess
-
+import matplotlib.pyplot as plt
+import numpy as np
+import pylab
 import tensorflow  as tf
 import tensorflow.contrib.gan as tfgan
 import tensorflow.contrib.slim as slim
-import tensorflow.contrib.data as tfdata
-import tensorflow.contrib
+from tensorflow.contrib.gan.python import namedtuples
 from tensorflow.contrib.learn import RunConfig
-import numpy as np
-import pylab
-import matplotlib.pyplot as plt
+
 import configuration
 import data_provider
 import losses
@@ -157,6 +155,10 @@ def get_estimator():
         model_dir=conf.model_path
     )
 
+    gen_lr=tf.train.exponential_decay(conf.gen_lr,global_step,)
+    generator_optimizer = tf.train.AdamOptimizer(learning_rate=gen_lr)
+    discriminator_optimizer = tf.train.AdamOptimizer(learning_rate=self.dis_lr)
+
     gan_estimator = tfgan.estimator.GANEstimator(
         model_dir=conf.model_path,
         generator_fn=generator_fn,
@@ -175,6 +177,17 @@ def start_train():
     conf.is_training = True
     train_input = data_provider.get_stage_I_train_input_fn()
     gan_estimator = get_estimator()
+
+    # gan_model = gan_estimator.model_fn
+    # gan_loss = tfgan.gan_loss(gan_model,
+    #                           losses.get_generator_loss(generator_loss_fn),
+    #                           discriminator_loss_fn
+    #                           )
+    # gan_train_ops = tfgan.train.gan_train_ops(gan_model,
+    #                                           gan_loss,
+    #                                           conf.generator_optimizer,
+    #                                           conf.discriminator_optimizer
+    #                                           )
     gan_estimator.train(train_input)
 
 
@@ -194,4 +207,4 @@ def start_predict():
 
 
 if __name__ == '__main__':
-    start_train()
+    start_predict()
