@@ -19,8 +19,8 @@ class config:
         self.batch_norm_decay = 0.9997
         self.epsilon = 0.001
 
-        self.gen_lr = 2e-4
-        self.dis_lr = 2e-4
+        self.gen_lr = 0.5e-4
+        self.dis_lr = 0.5e-4
         self.epoch = 600
 
         self.data_path = '/home/ste/diskG/CUB_200_2011/'

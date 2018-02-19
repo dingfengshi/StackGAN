@@ -5,6 +5,7 @@ import tensorflow  as tf
 import tensorflow.contrib.gan as tfgan
 import tensorflow.contrib.slim as slim
 from tensorflow.contrib.gan.python import namedtuples
+from tensorflow.contrib.gan.python.estimator import SummaryType
 from tensorflow.contrib.learn import RunConfig
 
 import configuration
@@ -56,6 +57,7 @@ def generator_fn(inputs, weight_decay=2.5e-5):
         tf.add_to_collection(tf.GraphKeys.LOSSES, loss)
     else:
         loss = 0
+    tf.summary.scalar("kl_loss", loss)
 
     s16 = int(conf.small_image_size / 16)
     s8 = int(conf.small_image_size / 8)
@@ -155,9 +157,8 @@ def get_estimator():
         model_dir=conf.model_path
     )
 
-    gen_lr=tf.train.exponential_decay(conf.gen_lr,global_step,)
-    generator_optimizer = tf.train.AdamOptimizer(learning_rate=gen_lr)
-    discriminator_optimizer = tf.train.AdamOptimizer(learning_rate=self.dis_lr)
+    generator_optimizer = tf.train.AdamOptimizer(learning_rate=conf.gen_lr)
+    discriminator_optimizer = tf.train.AdamOptimizer(learning_rate=conf.dis_lr)
 
     gan_estimator = tfgan.estimator.GANEstimator(
         model_dir=conf.model_path,
@@ -165,11 +166,12 @@ def get_estimator():
         discriminator_fn=discriminator_fn,
         generator_loss_fn=losses.get_generator_loss(generator_loss_fn),
         discriminator_loss_fn=discriminator_loss_fn,
-        generator_optimizer=conf.generator_optimizer,
-        discriminator_optimizer=conf.discriminator_optimizer,
-        add_summaries=False,
+        generator_optimizer=generator_optimizer,
+        discriminator_optimizer=discriminator_optimizer,
+        add_summaries=SummaryType.IMAGES,
         config=config
     )
+
     return gan_estimator
 
 
@@ -178,16 +180,6 @@ def start_train():
     train_input = data_provider.get_stage_I_train_input_fn()
     gan_estimator = get_estimator()
 
-    # gan_model = gan_estimator.model_fn
-    # gan_loss = tfgan.gan_loss(gan_model,
-    #                           losses.get_generator_loss(generator_loss_fn),
-    #                           discriminator_loss_fn
-    #                           )
-    # gan_train_ops = tfgan.train.gan_train_ops(gan_model,
-    #                                           gan_loss,
-    #                                           conf.generator_optimizer,
-    #                                           conf.discriminator_optimizer
-    #                                           )
     gan_estimator.train(train_input)
 
 
@@ -207,4 +199,4 @@ def start_predict():
 
 
 if __name__ == '__main__':
-    start_predict()
+    start_train()
