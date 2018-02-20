@@ -30,11 +30,11 @@ global_step = tf.train.get_or_create_global_step()
 generator_loss_fn = tfgan.losses.modified_generator_loss
 discriminator_loss_fn = tfgan.losses.modified_discriminator_loss
 
-gen_lr = tf.train.exponential_decay(conf.gen_lr, global_step, 4000, 0.5, "generator_learning_rate")
+gen_lr = tf.train.exponential_decay(conf.gen_lr, global_step, conf.decay_steps, 0.5, "generator_learning_rate")
 tf.summary.scalar("gen_learning_rate", gen_lr)
 generator_optimizer = tf.train.AdamOptimizer(learning_rate=gen_lr)
 
-dis_lr = tf.train.exponential_decay(conf.dis_lr, global_step, 4000, 0.5, "discriminator_learning_rate")
+dis_lr = tf.train.exponential_decay(conf.dis_lr, global_step, conf.decay_steps, 0.5, "discriminator_learning_rate")
 tf.summary.scalar("dis_learning_rate", dis_lr)
 discriminator_optimizer = tf.train.AdamOptimizer(learning_rate=dis_lr)
 
