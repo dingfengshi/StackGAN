@@ -5,8 +5,7 @@ class config:
     def __init__(self):
         self.model_path = "/home/ste/diskG/StackGAN/model/"
 
-
-        #训练集有11532条数据->1个epoch 约 180 steps
+        # 训练集有11532条数据->1个epoch 约 180 steps
         self.batch_size = 64
         self.predict_batch_size = 36
         self.noise_dim = 100
@@ -19,8 +18,9 @@ class config:
         self.batch_norm_decay = 0.9997
         self.epsilon = 0.001
 
-        self.gen_lr = 0.5e-4
-        self.dis_lr = 0.5e-4
+        self.gen_lr = 1e-4
+        self.dis_lr = 1e-4
         self.epoch = 600
+        self.training_steps = 600 * 180
 
         self.data_path = '/home/ste/diskG/CUB_200_2011/'

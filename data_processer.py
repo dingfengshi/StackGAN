@@ -6,6 +6,7 @@ import torchfile
 
 import numpy as np
 import tensorflow as tf
+import matplotlib.pyplot as plt
 
 images_list_path = "/home/ste/diskG/StackGAN/CUB/images.txt"
 captions_path = "/home/ste/diskG/StackGAN/CUB/caption/"
@@ -111,6 +112,8 @@ def get_img_list(path):
             img_list.append(path[:-4])
 
     return img_list
+
+
 
 
 if __name__ == '__main__':

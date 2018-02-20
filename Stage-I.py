@@ -1,12 +1,14 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import pylab
+import scipy.misc
 import tensorflow  as tf
 import tensorflow.contrib.gan as tfgan
 import tensorflow.contrib.slim as slim
 from tensorflow.contrib.gan.python import namedtuples
 from tensorflow.contrib.gan.python.estimator import SummaryType
 from tensorflow.contrib.learn import RunConfig
+import os
 
 import configuration
 import data_provider
@@ -23,9 +25,18 @@ batch_norm_params = {
     'zero_debias_moving_mean': True
 }
 
-global_step = tf.Variable(0, trainable=False, name="global_step")
-generator_loss_fn = tfgan.losses.minimax_generator_loss
-discriminator_loss_fn = tfgan.losses.minimax_discriminator_loss
+# 训练参数
+global_step = tf.train.get_or_create_global_step()
+generator_loss_fn = tfgan.losses.modified_generator_loss
+discriminator_loss_fn = tfgan.losses.modified_discriminator_loss
+
+gen_lr = tf.train.exponential_decay(conf.gen_lr, global_step, 4000, 0.5, "generator_learning_rate")
+tf.summary.scalar("gen_learning_rate", gen_lr)
+generator_optimizer = tf.train.AdamOptimizer(learning_rate=gen_lr)
+
+dis_lr = tf.train.exponential_decay(conf.dis_lr, global_step, 4000, 0.5, "discriminator_learning_rate")
+tf.summary.scalar("dis_learning_rate", dis_lr)
+discriminator_optimizer = tf.train.AdamOptimizer(learning_rate=dis_lr)
 
 
 # 产生分布的均值与方差
@@ -157,9 +168,6 @@ def get_estimator():
         model_dir=conf.model_path
     )
 
-    generator_optimizer = tf.train.AdamOptimizer(learning_rate=conf.gen_lr)
-    discriminator_optimizer = tf.train.AdamOptimizer(learning_rate=conf.dis_lr)
-
     gan_estimator = tfgan.estimator.GANEstimator(
         model_dir=conf.model_path,
         generator_fn=generator_fn,
@@ -178,9 +186,72 @@ def get_estimator():
 def start_train():
     conf.is_training = True
     train_input = data_provider.get_stage_I_train_input_fn()
-    gan_estimator = get_estimator()
+    condition, real_image = train_input()
 
-    gan_estimator.train(train_input)
+    gan_model, gan_loss = get_model_and_loss(condition, real_image)
+
+    gan_train_ops = tfgan.gan_train_ops(
+        model=gan_model,
+        loss=gan_loss,
+        generator_optimizer=generator_optimizer,
+        discriminator_optimizer=discriminator_optimizer
+    )
+
+    # generator : discrimination = 1:5
+    train_setp_fn = tfgan.get_sequential_train_steps(namedtuples.GANTrainSteps(1, 3))
+
+    with tf.Session() as sess:
+        # get_saver
+        saver = tf.train.Saver()
+
+        if not tf.train.get_checkpoint_state(conf.model_path):
+            init_op = tf.global_variables_initializer()
+            sess.run(init_op)
+        else:
+            saver.restore(sess, tf.train.latest_checkpoint(conf.model_path))
+
+        train_writer = tf.summary.FileWriter(conf.model_path, sess.graph)
+        merged = tf.summary.merge_all()
+
+        with slim.queues.QueueRunners(sess):
+            for step in range(conf.training_steps):
+                cur_loss, _ = train_setp_fn(sess, gan_train_ops, global_step, {})
+                tf.summary.scalar("loss", cur_loss)
+                if step % 40 == 0:
+                    sumary = sess.run(merged)
+                    glo_ste = sess.run(global_step)
+                    train_writer.add_summary(sumary, glo_ste)
+
+                # save var
+                if step % 200 == 0:
+                    saver.save(sess, conf.model_path, global_step)
+
+                # visualize data
+                if step % 500 == 0:
+                    gen_data = sess.run(gan_model.generated_data)
+                    glo_ste = sess.run(global_step)
+                    batch_size = gen_data.shape[0]
+                    datas = np.squeeze(np.split(gen_data, batch_size, 0))
+                    datas = [np.concatenate(datas[i:i + 8]) for i in range(0, 64, 8)]
+                    datas = np.concatenate(datas, axis=1)
+                    datas = (datas + 1) / 2 * 255
+                    scipy.misc.toimage(datas).save('image/{}.jpg'.format(glo_ste))
+
+
+def get_model_and_loss(condition, real_image):
+    gan_model = tfgan.gan_model(
+        generator_fn=generator_fn,
+        discriminator_fn=discriminator_fn,
+        real_data=real_image,
+        generator_inputs=condition,
+    )
+    gan_loss = tfgan.gan_loss(
+        gan_model,
+        generator_loss_fn=generator_loss_fn,
+        discriminator_loss_fn=discriminator_loss_fn
+    )
+
+    return gan_model, gan_loss
 
 
 def start_predict():
