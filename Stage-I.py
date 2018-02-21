@@ -16,7 +16,7 @@ import losses
 
 tf.reset_default_graph()
 conf = configuration.config()
-initializer = tf.initializers.random_uniform(-conf.init_scale, conf.init_scale)
+initializer = None
 batch_norm_params = {
     'decay': conf.batch_norm_decay,
     'epsilon': conf.epsilon,
@@ -198,7 +198,7 @@ def start_train():
     )
 
     # generator : discrimination = 1:5
-    train_setp_fn = tfgan.get_sequential_train_steps(namedtuples.GANTrainSteps(1, 3))
+    train_setp_fn = tfgan.get_sequential_train_steps(namedtuples.GANTrainSteps(1, 4))
 
     with tf.Session() as sess:
         # get_saver
