@@ -1,6 +1,4 @@
-import matplotlib.pyplot as plt
 import numpy as np
-import pylab
 import scipy.misc
 import tensorflow  as tf
 import tensorflow.contrib.gan as tfgan
@@ -198,7 +196,7 @@ def start_train():
     )
 
     # generator : discrimination = 1:5
-    train_setp_fn = tfgan.get_sequential_train_steps(namedtuples.GANTrainSteps(1, 4))
+    train_setp_fn = tfgan.get_sequential_train_steps(namedtuples.GANTrainSteps(1, 10))
 
     with tf.Session() as sess:
         # get_saver
@@ -264,9 +262,6 @@ def start_predict():
                   range(0, 36, 6)]
     tiled_images = np.concatenate(image_rows, axis=1)
     tiled_images = (tiled_images + 1) / 2 * 255
-    plt.axis('off')
-    plt.imshow(np.squeeze(tiled_images), cmap='gray')
-    pylab.show()
 
 
 if __name__ == '__main__':

@@ -30,7 +30,7 @@ def map_Stage_I(example):
 
 
 def get_stage_I_train_input_fn():
-    data_path = "/home/ste/diskG/StackGAN/CUB/train.tfrecord"
+    data_path = "train.tfrecord"
 
     def train_input_fn():
         with tf.device("/cpu:0"):
@@ -50,7 +50,7 @@ def get_stage_I_train_input_fn():
 
 
 def get_stage_I_predict_input_fn():
-    data_path = "/home/ste/diskG/StackGAN/CUB/train.tfrecord"
+    data_path = "train.tfrecord"
 
     def predict_input_fn():
         with tf.device("/cpu:0"):

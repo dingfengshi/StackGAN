@@ -3,7 +3,7 @@ import tensorflow as tf
 
 class config:
     def __init__(self):
-        self.model_path = "/home/ste/diskG/StackGAN/model/"
+        self.model_path = "model/"
 
         # 训练集有11532条数据->1个epoch 约 180 steps
         self.batch_size = 64
@@ -22,6 +22,6 @@ class config:
         self.dis_lr = 2e-4
         self.epoch = 600
         self.training_steps = 600 * 180
-        self.decay_steps = 6000
+        self.decay_steps = 7000
 
         self.data_path = '/home/ste/diskG/CUB_200_2011/'
