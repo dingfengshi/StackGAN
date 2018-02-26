@@ -3,6 +3,7 @@ import scipy.misc
 import tensorflow  as tf
 import tensorflow.contrib.gan as tfgan
 import tensorflow.contrib.slim as slim
+from PIL import Image
 from tensorflow.contrib.gan.python import namedtuples
 from tensorflow.contrib.gan.python.estimator import SummaryType
 from tensorflow.contrib.learn import RunConfig
@@ -213,6 +214,14 @@ def start_train():
 
         with slim.queues.QueueRunners(sess):
             for step in range(conf.training_steps):
+                # test data
+                # data = sess.run(real_image)
+                # data = visualize_data(data)
+                # img = Image.fromarray(data, 'RGB')
+                # img.show()
+                # data = sess.run(gan_model.generator_inputs)
+                # print(data)
+
                 cur_loss, _ = train_setp_fn(sess, gan_train_ops, global_step, {})
                 tf.summary.scalar("loss", cur_loss)
                 if step % 40 == 0:
@@ -228,12 +237,19 @@ def start_train():
                 if step % 500 == 0:
                     gen_data = sess.run(gan_model.generated_data)
                     glo_ste = sess.run(global_step)
-                    batch_size = gen_data.shape[0]
-                    datas = np.squeeze(np.split(gen_data, batch_size, 0))
-                    datas = [np.concatenate(datas[i:i + 8]) for i in range(0, 64, 8)]
-                    datas = np.concatenate(datas, axis=1)
-                    datas = (datas + 1) / 2 * 255
+                    datas = visualize_data(gen_data)
                     scipy.misc.toimage(datas).save('image/{}.jpg'.format(glo_ste))
+
+
+def visualize_data(gen_data):
+    batch_size = gen_data.shape[0]
+    datas = np.squeeze(np.split(gen_data, batch_size, 0))
+    datas = [np.concatenate(datas[i:i + 8]) for i in range(0, 64, 8)]
+    datas = np.concatenate(datas, axis=1)
+    datas = (datas + 1) / 2 * 255
+    datas = np.round(datas)
+    datas = datas.astype(np.uint8)
+    return datas
 
 
 def get_model_and_loss(condition, real_image):

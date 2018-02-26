@@ -14,7 +14,10 @@ def parse_data(example):
         "caption_shape": tf.FixedLenFeature(shape=[2], dtype=tf.int64)
     }
     par_exm = tf.parse_single_example(example, features=features)
-    image = tf.reshape(tf.decode_raw(par_exm["image"], tf.uint8), par_exm["image_shape"])
+    height = tf.cast(par_exm["image_shape"][1], tf.int32)
+    weight = tf.cast(par_exm["image_shape"][0], tf.int32)
+    shape = tf.stack([height, weight, 3])
+    image = tf.reshape(tf.decode_raw(par_exm["image"], tf.uint8), shape)
     caption = tf.reshape(par_exm["caption"].values, par_exm["caption_shape"])
     return image, caption
 
@@ -22,6 +25,7 @@ def parse_data(example):
 def map_Stage_I(example):
     image, caption = parse_data(example)
     resized_image = tf.image.resize_images(image, [conf.small_image_size, conf.small_image_size])
+    resized_image = tf.cast(resized_image, tf.float32)
     resized_image = (resized_image - 127.5) / 127.5
     # 随机采样一个其中的caption用于训练
     random = tf.random_uniform([1], 0, tf.shape(caption)[0], dtype=tf.int32)
