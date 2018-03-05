@@ -75,7 +75,7 @@ def get_stage_II_train_input_fn():
             iterator = dataset.make_one_shot_iterator()
             image, caption = iterator.get_next()
             caption.set_shape([conf.batch_size, 1024])
-            image.set_shape([conf.batch_size, conf.small_image_size, conf.small_image_size, 3])
+            image.set_shape([conf.batch_size, conf.large_image_size, conf.large_image_size, 3])
             noise = tf.random_normal([conf.batch_size, conf.noise_dim])
             return {"noise": noise, "caption": caption}, image
 

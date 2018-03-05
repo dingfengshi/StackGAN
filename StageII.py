@@ -3,6 +3,7 @@ import scipy.misc
 import tensorflow  as tf
 import tensorflow.contrib.gan as tfgan
 import tensorflow.contrib.slim as slim
+from PIL import Image
 from tensorflow.contrib.gan.python import namedtuples
 
 import StageI
@@ -63,7 +64,7 @@ def residual_blocks(x):
 
 def generator_fn(inputs):
     # inputs is a 2-tuple (noise,embedding)
-    gen_img = inputs["gen"]
+    gen_img = inputs["gen_img"]
     embedding = inputs["caption"]
 
     mean, log_sigma = CAnet(embedding)
@@ -84,8 +85,8 @@ def generator_fn(inputs):
         # 16*16*512
 
         # spatial replication
-        text_encode = tf.expand_dims(c, 0)
-        text_encode = tf.tile(text_encode, [1, s16, s16, 1])
+        text_encode = tf.expand_dims(tf.expand_dims(c, 1), 1)
+        text_encode = tf.tile(text_encode, [1, s4, s4, 1])
 
         merge = tf.concat([text_encode, image_encode], 3)
         x = slim.conv2d(merge, conf.gf_dim * 4, 3)
@@ -162,33 +163,85 @@ def discriminator_fn(img, conditioning, weight_decay=2.5e-5):
 
 
 def start_train():
-    train_input = data_provider.get_stage_II_train_input_fn()
-    condition, real_image = train_input()
-
+    stageI_train_input = data_provider.get_stage_I_train_input_fn()
+    condition, real_image = stageI_train_input()
     stageI_gan_model, _ = StageI.get_model_and_loss(condition, real_image)
+    conf.is_training = True
+    need_to_init = False
+
+    condition, real_image = data_provider.get_stage_II_train_input_fn()()
 
     with tf.Session() as sess:
         # get_saver
         saver = tf.train.Saver()
 
-        if not tf.train.get_checkpoint_state(conf.stageI_model_path):
-            raise FileNotFoundError("StageI model not found!")
+        if tf.train.get_checkpoint_state(conf.stageII_model_path):
+            saver.restore(sess, tf.train.latest_checkpoint(conf.stageII_model_path))
         else:
-            saver.restore(sess, tf.train.latest_checkpoint(conf.stageI_model_path))
+            if not tf.train.get_checkpoint_state(conf.stageI_model_path):
+                raise FileNotFoundError("StageI model not found!")
+            else:
+                saver.restore(sess, tf.train.latest_checkpoint(conf.stageI_model_path))
+                sI_var = tf.global_variables()
+                need_to_init = True
+                tf.assign(global_step, 0)
 
-        conf.is_training = False
         with tf.variable_scope('Generator', reuse=True):
             gen_img = stageI_gan_model.generator_fn(condition)
 
+        # StageI不参与训练
+
+        param = tf.get_collection_ref(tf.GraphKeys.UPDATE_OPS)
+        del param[:]
+
         gen_input = {"gen_img": gen_img, "caption": condition["caption"]}
 
-        stageII_gan_model = tfgan.gan_model(generator_fn, discriminator_fn, real_image, gen_input,
-                                            generator_scope="stageII_generator",
-                                            discriminator_scope="stageII_discrimination")
+        stageII_gan_model, gan_loss = get_model_and_loss(gen_input, real_image)
 
-        train_writer = tf.summary.FileWriter(conf.stageI_model_path, sess.graph)
+        gan_train_ops = tfgan.gan_train_ops(
+            model=stageII_gan_model,
+            loss=gan_loss,
+            generator_optimizer=generator_optimizer,
+            discriminator_optimizer=discriminator_optimizer
+        )
+
+        if need_to_init:
+            var_to_init = [x for x in tf.global_variables() if x not in sI_var]
+            sess.run(tf.initialize_variables(var_to_init))
+
+        train_setp_fn = tfgan.get_sequential_train_steps(namedtuples.GANTrainSteps(1, 10))
+
+        train_writer = tf.summary.FileWriter(conf.stageII_model_path, sess.graph)
         merged = tf.summary.merge_all()
         step = sess.run(global_step)
+
+        with slim.queues.QueueRunners(sess):
+            for _ in range(conf.training_steps):
+                # test data
+                data = sess.run(real_image)
+                data = visualize_data(data)
+                img = Image.fromarray(data, 'RGB')
+                img.show()
+                data = sess.run(stageII_gan_model.generator_inputs)
+                print(data)
+                #
+                step = step + 1
+
+                cur_loss, _ = train_setp_fn(sess, gan_train_ops, global_step, {})
+                tf.summary.scalar("loss", cur_loss)
+                if step % 50 == 0:
+                    sumary = sess.run(merged)
+                    train_writer.add_summary(sumary, step)
+
+                # save var
+                if step % 200 == 0:
+                    saver.save(sess, conf.stageI_model_path, global_step)
+
+                # visualize data
+                if step % 1000 == 0:
+                    gen_data = sess.run(gan_model.generated_data)
+                    datas = visualize_data(gen_data)
+                    scipy.misc.toimage(datas).save('image/{}.jpg'.format(step))
 
 
 def visualize_data(gen_data):
@@ -208,6 +261,8 @@ def get_model_and_loss(condition, real_image):
         discriminator_fn=discriminator_fn,
         real_data=real_image,
         generator_inputs=condition,
+        generator_scope="stageII_generator",
+        discriminator_scope="stageII_discriminatior"
     )
     gan_loss = tfgan.gan_loss(
         gan_model,
@@ -237,4 +292,4 @@ def start_predict():
 
 
 if __name__ == '__main__':
-    start_predict()
+    start_train()

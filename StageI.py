@@ -229,7 +229,7 @@ def get_model_and_loss(condition, real_image):
         generator_fn=generator_fn,
         discriminator_fn=discriminator_fn,
         real_data=real_image,
-        generator_inputs=condition,
+        generator_inputs=condition
     )
     gan_loss = tfgan.gan_loss(
         gan_model,
