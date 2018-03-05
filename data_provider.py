@@ -1,5 +1,4 @@
 import tensorflow as tf
-import numpy as np
 
 import configuration
 
@@ -32,6 +31,17 @@ def map_Stage_I(example):
     single_caption = tf.gather_nd(caption, random)
     return resized_image, single_caption
 
+def map_Stage_II(example):
+    image, caption = parse_data(example)
+    resized_image = tf.image.resize_images(image, [conf.large_image_size, conf.large_image_size])
+    resized_image = tf.cast(resized_image, tf.float32)
+    resized_image = (resized_image - 127.5) / 127.5
+    # 随机采样一个其中的caption用于训练
+    random = tf.random_uniform([1], 0, tf.shape(caption)[0], dtype=tf.int32)
+    single_caption = tf.gather_nd(caption, random)
+    return resized_image, single_caption
+
+
 
 def get_stage_I_train_input_fn():
     data_path = "train.tfrecord"
@@ -52,9 +62,28 @@ def get_stage_I_train_input_fn():
 
     return train_input_fn
 
+def get_stage_II_train_input_fn():
+    data_path = "train.tfrecord"
+
+    def train_input_fn():
+        with tf.device("/cpu:0"):
+            dataset = tf.data.TFRecordDataset(data_path)
+            dataset = dataset.map(map_Stage_II)
+            dataset = dataset.shuffle(buffer_size=512)
+            dataset = dataset.repeat(conf.epoch)
+            dataset = dataset.batch(conf.batch_size)
+            iterator = dataset.make_one_shot_iterator()
+            image, caption = iterator.get_next()
+            caption.set_shape([conf.batch_size, 1024])
+            image.set_shape([conf.batch_size, conf.small_image_size, conf.small_image_size, 3])
+            noise = tf.random_normal([conf.batch_size, conf.noise_dim])
+            return {"noise": noise, "caption": caption}, image
+
+    return train_input_fn
+
 
 def get_stage_I_predict_input_fn():
-    data_path = "train.tfrecord"
+    data_path = "test.tfrecord"
 
     def predict_input_fn():
         with tf.device("/cpu:0"):
